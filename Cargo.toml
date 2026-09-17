@@ -1,0 +1,8 @@
+[package]
+name = "cimsi"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+gpui-ce = "0.2.2"
+gpui_platform = { version = "0.1.0", package = "gpui_ce_platform" }
