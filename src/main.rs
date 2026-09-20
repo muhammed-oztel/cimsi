@@ -264,7 +264,7 @@ fn run_gui() {
         gpui_kit::init(cx);
         apply_theme(cx);
 
-        let bounds = Bounds::centered(None, size(px(900.), px(580.)), cx);
+        let bounds = Bounds::centered(None, size(px(900.), px(520.)), cx);
         cx.spawn(async move |cx| {
             cx.open_window(
                 WindowOptions {
