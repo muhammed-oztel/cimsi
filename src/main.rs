@@ -1,3 +1,5 @@
+#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
+
 use gpui_kit::component::button::*;
 use gpui_kit::component::*;
 use gpui_kit::component::{Theme, ThemeMode};
@@ -264,7 +266,7 @@ fn run_gui() {
         gpui_kit::init(cx);
         apply_theme(cx);
 
-        let bounds = Bounds::centered(None, size(px(900.), px(520.)), cx);
+        let bounds = Bounds::centered(None, size(px(1100.), px(520.)), cx);
         cx.spawn(async move |cx| {
             cx.open_window(
                 WindowOptions {
