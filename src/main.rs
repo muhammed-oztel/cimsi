@@ -4,42 +4,44 @@ use gpui_kit::*;
 
 use crate::components::checkbox::ControlledCheckbox;
 use crate::components::country_combobox::CountryCombobox;
+use crate::components::operator_combobox::OperatorCombobox;
 
 mod components;
 
 pub struct HelloWorld {
-    terms: Entity<ControlledCheckbox>,
     country: Entity<CountryCombobox>,
+    operator: Entity<OperatorCombobox>,
 }
 
 impl HelloWorld {
     fn new(window: &mut Window, cx: &mut Context<Self>) -> Self {
-        Self {
-            terms: cx.new(|_| ControlledCheckbox::new()),
-            country: cx.new(|cx| CountryCombobox::new(window, cx)),
-        }
+        let country = cx.new(|cx| CountryCombobox::new(window, cx));
+        let country_state = country.read(cx).state().clone();
+        let operator = cx.new(|cx| OperatorCombobox::new(&country_state, window, cx));
+
+        Self { country, operator }
     }
 }
 
 impl Render for HelloWorld {
     fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let code = self.country.read(cx).selected_country(cx).unwrap_or("none");
+        let operator = self
+            .operator
+            .read(cx)
+            .selected_operator(cx)
+            .unwrap_or("none");
+
         div()
             .v_flex()
             .gap_2()
             .size_full()
             .items_center()
             .justify_center()
-            .child("Hello, World!")
-            .child(
-                Button::new("ok")
-                    .primary()
-                    .label("Let's Go!")
-                    .on_click(|_, _, _| println!("Clicked!")),
-            )
-            .child(self.terms.clone())
             .child(self.country.clone())
+            .child(self.operator.clone())
             .child(format!("Selected country code: {code}"))
+            .child(format!("Selected operator: {operator}"))
     }
 }
 

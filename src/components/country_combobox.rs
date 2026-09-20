@@ -6,7 +6,7 @@ use gpui_kit::component::combobox::{
 };
 use gpui_kit::component::searchable_list::{SearchableGroup, SearchableListItem, SearchableVec};
 use gpui_kit::{
-    App, AppContext, Context, Entity, IntoElement, ParentElement, Render, Styled, Window, div,
+    App, AppContext, Context, Entity, IntoElement, ParentElement, Render, Styled, Window, div, px,
 };
 
 #[derive(Clone)]
@@ -36,6 +36,10 @@ const COUNTRIES: &[Country] = &[
         code: "USA",
         name: "United States",
     },
+    Country {
+        code: "UKR",
+        name: "Ukraine",
+    },
 ];
 
 pub struct CountryCombobox {
@@ -58,13 +62,15 @@ impl CountryCombobox {
     pub fn selected_country(&self, cx: &App) -> Option<&'static str> {
         self.state.read(cx).selected_value()
     }
+
+    pub fn state(&self) -> &Entity<ComboboxState<SearchableVec<Country>>> {
+        &self.state
+    }
 }
 
 impl Render for CountryCombobox {
     fn render(&mut self, _window: &mut Window, _cx: &mut Context<Self>) -> impl IntoElement {
-        // The combobox's own wrapper is size_full, so the width lives on this div.
-        // The parent's items_center then centers the div horizontally.
-        div().w_5_6().child(
+        div().w(px(200.)).child(
             Combobox::new(&self.state)
                 .placeholder("Select the country of GSM Operator...")
                 .w_full(),
