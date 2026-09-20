@@ -147,7 +147,6 @@ impl Render for HelloWorld {
             .child(
                 div()
                     .flex_1()
-                    .h_full()
                     .child(card("Results", self.brute_force.clone())),
             )
     }
@@ -265,12 +264,12 @@ fn run_gui() {
         gpui_kit::init(cx);
         apply_theme(cx);
 
-        let bounds = Bounds::centered(None, size(px(900.), px(620.)), cx);
+        let bounds = Bounds::centered(None, size(px(900.), px(580.)), cx);
         cx.spawn(async move |cx| {
             cx.open_window(
                 WindowOptions {
                     window_bounds: Some(WindowBounds::Windowed(bounds)),
-                    is_resizable: true,
+                    is_resizable: false,
                     titlebar: Some(TitlebarOptions {
                         title: Some("CIMSI - Crack IMSI".into()),
                         ..Default::default()

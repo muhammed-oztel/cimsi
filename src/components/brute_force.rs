@@ -549,7 +549,7 @@ impl Render for BruteForce {
         div()
             .v_flex()
             .gap_3()
-            .size_full()
+            .w_full()
             .child(
                 div()
                     .h_flex()
@@ -654,7 +654,7 @@ impl Render for BruteForce {
             })
             .child(
                 div()
-                    .flex_1()
+                    .h(px(260.))
                     .w_full()
                     .bg(rgb(0x121a29))
                     .border_1()
