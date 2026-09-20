@@ -1,6 +1,7 @@
 use std::vec;
 
 use gpui_kit::component::combobox::{Combobox, ComboboxState};
+use gpui_kit::component::input::{Input, InputState, MaskPattern};
 use gpui_kit::component::searchable_list::SearchableVec;
 use gpui_kit::component::StyledExt;
 use gpui_kit::{App, AppContext, Context, Entity, IntoElement, ParentElement, Render, Styled, Window, div, px};
@@ -11,6 +12,7 @@ const ENCODINGS: &[&str] = &["Hex", "Base64"];
 pub struct HashOptions {
     algorithm_state: Entity<ComboboxState<SearchableVec<&'static str>>>,
     encoding_state: Entity<ComboboxState<SearchableVec<&'static str>>>,
+    threads_state: Entity<InputState>,
 }
 
 impl HashOptions {
@@ -27,9 +29,18 @@ impl HashOptions {
             s
         });
 
+        let threads_state = cx.new(|cx| {
+            let mut s = InputState::new(window, cx)
+                .placeholder("Threads")
+                .mask_pattern(MaskPattern::new("999"));
+            s.set_value("1", window, cx);
+            s
+        });
+
         Self {
             algorithm_state,
             encoding_state,
+            threads_state,
         }
     }
 
@@ -39,6 +50,17 @@ impl HashOptions {
 
     pub fn encoding(&self, cx: &App) -> &'static str {
         self.encoding_state.read(cx).selected_value().unwrap_or(ENCODINGS[0])
+    }
+
+    /// Number of threads to brute force with, parsed from the input and
+    /// clamped to at least 1 (an empty or non-numeric field defaults to 1).
+    pub fn threads(&self, cx: &App) -> usize {
+        self.threads_state
+            .read(cx)
+            .unmask_value()
+            .parse::<usize>()
+            .unwrap_or(1)
+            .max(1)
     }
 }
 
@@ -61,5 +83,6 @@ impl Render for HashOptions {
                         .w_full(),
                 ),
             )
+            .child(div().w(px(80.)).child(Input::new(&self.threads_state)))
     }
 }

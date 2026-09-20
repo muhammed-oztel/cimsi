@@ -10,6 +10,7 @@ use crate::components::imsi_display::ImsiDisplay;
 use crate::components::imsi_hash_file::ImsiHashFile;
 use crate::components::operator_combobox::OperatorCombobox;
 
+mod checkpoint;
 mod cli;
 mod components;
 mod hash_file;
@@ -102,7 +103,7 @@ fn run_gui() {
         // This must be called before using any GPUI Component features.
         gpui_kit::init(cx);
 
-        let bounds = Bounds::centered(None, size(px(400.), px(600.)), cx);
+        let bounds = Bounds::centered(None, size(px(400.), px(800.)), cx);
         cx.spawn(async move |cx| {
             cx.open_window(
                 WindowOptions {

@@ -28,6 +28,12 @@ impl ImsiHashFile {
         &self.hashes
     }
 
+    /// Display path of the currently loaded hash file, for embedding in a
+    /// checkpoint so a resumed run can reload the same file.
+    pub fn hashes_source_display(&self) -> String {
+        self.path.as_ref().map(|p| p.display().to_string()).unwrap_or_default()
+    }
+
     fn pick_file(&mut self, cx: &mut Context<Self>) {
         let paths = cx.prompt_for_paths(PathPromptOptions {
             files: true,
