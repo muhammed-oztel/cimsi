@@ -38,6 +38,8 @@ impl HelloWorld {
         let hash_options = cx.new(|cx| HashOptions::new(window, cx));
         let brute_force = cx.new(|cx| {
             BruteForce::new(
+                country.clone(),
+                operator.clone(),
                 imsi.clone(),
                 hash_options.clone(),
                 hash_file.clone(),

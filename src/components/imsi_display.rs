@@ -110,6 +110,32 @@ impl ImsiDisplay {
         self.display_state.read(cx).value()
     }
 
+    /// Restore `operator_prefix`, known digits, and position directly, e.g.
+    /// when resuming from a checkpoint (the country/operator comboboxes must
+    /// be set separately — this doesn't go through their subscriptions).
+    pub fn restore(
+        &mut self,
+        operator_prefix: &'static str,
+        digits: &str,
+        position: Position,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        self.operator_prefix = operator_prefix;
+        self.position = position;
+
+        self.digits_state.update(cx, |s, cx| {
+            s.set_mask_pattern(digits_mask(IMSI_TOTAL_LEN - operator_prefix.len()), window, cx);
+            s.set_value(digits, window, cx);
+        });
+
+        self.display_state.update(cx, |s, cx| {
+            s.set_value(compose_pattern(operator_prefix, digits, position), window, cx);
+        });
+
+        cx.notify();
+    }
+
     fn set_position(&mut self, position: Position, window: &mut Window, cx: &mut Context<Self>) {
         self.position = position;
 

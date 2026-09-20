@@ -27,6 +27,25 @@ pub fn compose_pattern(prefix: &str, digits: &str, position: Position) -> String
     }
 }
 
+/// Recover the known digits and their position from a pattern already
+/// composed with `compose_pattern`, given the operator prefix that produced
+/// it (e.g. to restore UI state from a saved checkpoint). If there are no
+/// known digits at all (`prefix` + all `*`), position is ambiguous and
+/// defaults to `Prefix`.
+pub fn decompose_pattern(pattern: &str, prefix: &str) -> (String, Position) {
+    let remaining = pattern.strip_prefix(prefix).unwrap_or(pattern);
+
+    if let Some(stars_at) = remaining.find('*') {
+        if remaining[stars_at..].chars().all(|c| c == '*') {
+            return (remaining[..stars_at].to_string(), Position::Prefix);
+        }
+        let digits_at = remaining.rfind('*').map(|i| i + 1).unwrap_or(0);
+        return (remaining[digits_at..].to_string(), Position::Suffix);
+    }
+
+    (remaining.to_string(), Position::Prefix)
+}
+
 /// Split `0..total` into `threads` contiguous, roughly-equal sub-ranges (the
 /// last range absorbs any remainder). `threads == 0` is treated as `1`.
 pub fn split_ranges(total: u64, threads: usize) -> Vec<(u64, u64)> {

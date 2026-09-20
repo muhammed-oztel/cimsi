@@ -58,3 +58,14 @@ pub fn operators_for(country_code: &str) -> Vec<Operator> {
 pub fn imsi_prefix_for(code: &str) -> Option<&'static str> {
     OPERATORS.iter().find(|o| o.code == code).map(|o| o.imsi_prefix)
 }
+
+/// Find the operator whose IMSI prefix (MCC+MNC) starts `pattern`, e.g. to
+/// recover the operator from a saved checkpoint's composed pattern. Prefers
+/// the longest matching prefix, since a shorter prefix can be a substring of
+/// a longer, unrelated one.
+pub fn operator_for_pattern(pattern: &str) -> Option<&'static Operator> {
+    OPERATORS
+        .iter()
+        .filter(|o| pattern.starts_with(o.imsi_prefix))
+        .max_by_key(|o| o.imsi_prefix.len())
+}

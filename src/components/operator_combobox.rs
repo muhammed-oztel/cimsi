@@ -75,6 +75,23 @@ impl OperatorCombobox {
     pub fn state(&self) -> &Entity<ComboboxState<SearchableVec<Operator>>> {
         &self.state
     }
+
+    /// Refresh the item list for `country_code` and select `operator_code`
+    /// directly, e.g. when restoring from a checkpoint. Purely cosmetic —
+    /// programmatic selection doesn't emit a `ComboboxEvent`, so it won't
+    /// cascade into `ImsiDisplay`.
+    pub fn set_selected(
+        &mut self,
+        country_code: &str,
+        operator_code: &'static str,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        self.state.update(cx, |s, cx| {
+            s.set_items(SearchableVec::new(operators_for(country_code)), window, cx);
+            s.set_selected_values(&[operator_code], window, cx);
+        });
+    }
 }
 
 impl Render for OperatorCombobox {

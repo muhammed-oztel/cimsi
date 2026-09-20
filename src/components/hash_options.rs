@@ -19,13 +19,13 @@ impl HashOptions {
     pub fn new(window: &mut Window, cx: &mut Context<Self>) -> Self {
         let algorithm_state = cx.new(|cx| {
             let mut s = ComboboxState::new(SearchableVec::new(ALGORITHMS.to_vec()), vec![], window, cx);
-            s.set_selected_values(&[ALGORITHMS[0]], window, cx);
+            s.set_selected_values(&["SHA-256"], window, cx);
             s
         });
 
         let encoding_state = cx.new(|cx| {
             let mut s = ComboboxState::new(SearchableVec::new(ENCODINGS.to_vec()), vec![], window, cx);
-            s.set_selected_values(&[ENCODINGS[0]], window, cx);
+            s.set_selected_values(&["Base64"], window, cx);
             s
         });
 
@@ -45,11 +45,20 @@ impl HashOptions {
     }
 
     pub fn algorithm(&self, cx: &App) -> &'static str {
-        self.algorithm_state.read(cx).selected_value().unwrap_or(ALGORITHMS[0])
+        self.algorithm_state.read(cx).selected_value().unwrap_or("SHA-256")
     }
 
     pub fn encoding(&self, cx: &App) -> &'static str {
-        self.encoding_state.read(cx).selected_value().unwrap_or(ENCODINGS[0])
+        self.encoding_state.read(cx).selected_value().unwrap_or("Base64")
+    }
+
+    /// Set algorithm/encoding selections, e.g. when restoring from a checkpoint.
+    pub fn set_algorithm(&mut self, value: &'static str, window: &mut Window, cx: &mut Context<Self>) {
+        self.algorithm_state.update(cx, |s, cx| s.set_selected_values(&[value], window, cx));
+    }
+
+    pub fn set_encoding(&mut self, value: &'static str, window: &mut Window, cx: &mut Context<Self>) {
+        self.encoding_state.update(cx, |s, cx| s.set_selected_values(&[value], window, cx));
     }
 
     /// Number of threads to brute force with, parsed from the input and

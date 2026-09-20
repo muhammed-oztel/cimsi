@@ -34,6 +34,14 @@ impl ImsiHashFile {
         self.path.as_ref().map(|p| p.display().to_string()).unwrap_or_default()
     }
 
+    /// Reflect an already-loaded hash file in the UI, e.g. when restoring
+    /// from a checkpoint that reloaded the file itself.
+    pub fn set_loaded(&mut self, path: PathBuf, hashes: Vec<String>, cx: &mut Context<Self>) {
+        self.path = Some(path);
+        self.hashes = hashes;
+        cx.notify();
+    }
+
     fn pick_file(&mut self, cx: &mut Context<Self>) {
         let paths = cx.prompt_for_paths(PathPromptOptions {
             files: true,

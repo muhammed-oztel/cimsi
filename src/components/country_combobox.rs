@@ -44,6 +44,13 @@ impl CountryCombobox {
         self.state.read(cx).selected_value()
     }
 
+    /// Set the selected country directly, e.g. when restoring from a
+    /// checkpoint. Purely cosmetic — programmatic selection doesn't emit a
+    /// `ComboboxEvent`, so it won't cascade into `OperatorCombobox`/`ImsiDisplay`.
+    pub fn set_selected(&mut self, code: &'static str, window: &mut Window, cx: &mut Context<Self>) {
+        self.state.update(cx, |s, cx| s.set_selected_values(&[code], window, cx));
+    }
+
     pub fn state(&self) -> &Entity<ComboboxState<SearchableVec<Country>>> {
         &self.state
     }

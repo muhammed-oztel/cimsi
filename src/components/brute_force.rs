@@ -13,11 +13,14 @@ use gpui_kit::{
 };
 
 use crate::checkpoint::{Checkpoint, RangeProgress};
+use crate::components::country_combobox::CountryCombobox;
 use crate::components::hash_options::HashOptions;
 use crate::components::imsi_display::ImsiDisplay;
 use crate::components::imsi_hash_file::ImsiHashFile;
+use crate::components::operator_combobox::OperatorCombobox;
 use crate::hash_file::read_hash_lines;
-use crate::imsi_search::{BruteForcer, Match, SearchEvent, build_targets, split_ranges};
+use crate::imsi::operator_for_pattern;
+use crate::imsi_search::{BruteForcer, Match, SearchEvent, build_targets, decompose_pattern, split_ranges};
 
 /// One thread's assigned slice `[start, end)` (used for the percentage/total
 /// calc), the absolute combo index this run's `BruteForcer` resumed from
@@ -32,6 +35,8 @@ struct ThreadProgress {
 }
 
 pub struct BruteForce {
+    country: Entity<CountryCombobox>,
+    operator: Entity<OperatorCombobox>,
     imsi: Entity<ImsiDisplay>,
     hash_options: Entity<HashOptions>,
     hash_file: Entity<ImsiHashFile>,
@@ -54,6 +59,8 @@ pub struct BruteForce {
 
 impl BruteForce {
     pub fn new(
+        country: Entity<CountryCombobox>,
+        operator: Entity<OperatorCombobox>,
         imsi: Entity<ImsiDisplay>,
         hash_options: Entity<HashOptions>,
         hash_file: Entity<ImsiHashFile>,
@@ -64,6 +71,8 @@ impl BruteForce {
             cx.new(|cx| TextareaState::new(window, cx).placeholder("Matches will appear here..."));
 
         Self {
+            country,
+            operator,
             imsi,
             hash_options,
             hash_file,
@@ -77,8 +86,8 @@ impl BruteForce {
             frozen_elapsed: None,
             already_tried_at_start: 0,
             pattern: String::new(),
-            algorithm: "MD5",
-            encoding: "Hex",
+            algorithm: "SHA-256",
+            encoding: "Base64",
             hash_file_display: String::new(),
         }
     }
@@ -141,6 +150,27 @@ impl BruteForce {
         let targets = build_targets(lines.iter().map(String::as_str), hex_mode);
         let ranges = checkpoint.ranges.iter().map(|r| (r.start, r.end, r.tried)).collect();
         let hash_file_display = checkpoint.hash_file;
+
+        if let Some(operator) = operator_for_pattern(&checkpoint.pattern) {
+            let (digits, position) = decompose_pattern(&checkpoint.pattern, operator.imsi_prefix);
+
+            self.country.update(cx, |s, cx| {
+                s.set_selected(operator.country_code, window, cx);
+            });
+            self.operator.update(cx, |s, cx| {
+                s.set_selected(operator.country_code, operator.code, window, cx);
+            });
+            self.imsi.update(cx, |s, cx| {
+                s.restore(operator.imsi_prefix, &digits, position, window, cx);
+            });
+        }
+        self.hash_options.update(cx, |s, cx| {
+            s.set_algorithm(checkpoint.algorithm, window, cx);
+            s.set_encoding(checkpoint.encoding, window, cx);
+        });
+        self.hash_file.update(cx, |s, cx| {
+            s.set_loaded(std::path::PathBuf::from(&hash_file_display), lines, cx);
+        });
 
         self.run_from_ranges(
             checkpoint.pattern,
@@ -348,6 +378,7 @@ impl BruteForce {
                     let already_found = self.found.iter().any(|m| m.imsi == found.imsi && m.hash == found.hash);
                     if !already_found {
                         self.found.push(found.clone());
+                        self.write_default_output_file();
                     }
                 }
                 SearchEvent::Progress { thread_id, tried } => {
@@ -373,7 +404,7 @@ impl BruteForce {
                 "No matches found.".to_string()
             }
         } else {
-            self.found.iter().map(|m| format!("{}  {}", m.imsi, m.hash)).collect::<Vec<_>>().join("\n")
+            matches_to_text(&self.found)
         };
 
         self.set_output(&text, window, cx);
@@ -381,6 +412,36 @@ impl BruteForce {
         if was_stopped_manually {
             self.save_checkpoint_dialog(window, cx);
         }
+    }
+
+    /// Writes every match found so far to `imsi.txt` in the exe's working
+    /// directory, overwriting it each time. Best-effort: a write failure
+    /// here shouldn't interrupt the running search.
+    fn write_default_output_file(&self) {
+        let _ = std::fs::write(default_output_path(), matches_to_text(&self.found));
+    }
+
+    fn save_results_dialog(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        let text = matches_to_text(&self.found);
+        let directory = std::env::current_dir().unwrap_or_default();
+        let receiver = cx.prompt_for_new_path(&directory, Some("imsi.txt"));
+
+        cx.spawn_in(window, async move |this, cx| {
+            let Ok(Ok(Some(path))) = receiver.await else {
+                return;
+            };
+
+            let result = cx.background_executor().spawn(async move { std::fs::write(&path, text) }).await;
+
+            if let Err(err) = result {
+                _ = cx.update(|window, app_cx| {
+                    this.update(app_cx, |this, ctx| {
+                        this.set_output(&format!("Failed to save results: {err}"), window, ctx);
+                    })
+                });
+            }
+        })
+        .detach();
     }
 
     fn set_output(&mut self, text: &str, window: &mut Window, cx: &mut Context<Self>) {
@@ -453,6 +514,13 @@ impl Render for BruteForce {
                                 this.resume_dialog(window, cx);
                             }),
                         ))
+                    })
+                    .when(!self.running && !self.found.is_empty(), |this| {
+                        this.child(Button::new("brute-force-save").label("Save results as...").on_click(
+                            cx.listener(|this, _: &ClickEvent, window, cx| {
+                                this.save_results_dialog(window, cx);
+                            }),
+                        ))
                     }),
             )
             .when(self.running || total > 0, |this| {
@@ -474,6 +542,14 @@ impl Render for BruteForce {
                     .child(Textarea::new(&self.output_state).disabled(true).size_full()),
             )
     }
+}
+
+fn default_output_path() -> std::path::PathBuf {
+    std::env::current_dir().unwrap_or_default().join("imsi.txt")
+}
+
+fn matches_to_text(found: &[Match]) -> String {
+    found.iter().map(|m| format!("{}  {}", m.imsi, m.hash)).collect::<Vec<_>>().join("\n")
 }
 
 fn format_eta(seconds: f64) -> String {
