@@ -4,6 +4,7 @@ use gpui_kit::*;
 
 use crate::components::checkbox::ControlledCheckbox;
 use crate::components::country_combobox::CountryCombobox;
+use crate::components::imsi_display::ImsiDisplay;
 use crate::components::operator_combobox::OperatorCombobox;
 
 mod components;
@@ -11,6 +12,7 @@ mod components;
 pub struct HelloWorld {
     country: Entity<CountryCombobox>,
     operator: Entity<OperatorCombobox>,
+    imsi: Entity<ImsiDisplay>,
 }
 
 impl HelloWorld {
@@ -18,8 +20,14 @@ impl HelloWorld {
         let country = cx.new(|cx| CountryCombobox::new(window, cx));
         let country_state = country.read(cx).state().clone();
         let operator = cx.new(|cx| OperatorCombobox::new(&country_state, window, cx));
+        let operator_state = operator.read(cx).state().clone();
+        let imsi = cx.new(|cx| ImsiDisplay::new(&operator_state, window, cx));
 
-        Self { country, operator }
+        Self {
+            country,
+            operator,
+            imsi,
+        }
     }
 }
 
@@ -40,6 +48,7 @@ impl Render for HelloWorld {
             .justify_center()
             .child(self.country.clone())
             .child(self.operator.clone())
+            .child(self.imsi.clone())
             .child(format!("Selected country code: {code}"))
             .child(format!("Selected operator: {operator}"))
     }

@@ -14,6 +14,7 @@ pub struct Operator {
     country_code: &'static str,
     code: &'static str,
     name: &'static str,
+    imsi_prefix: &'static str,
 }
 
 impl SearchableListItem for Operator {
@@ -33,31 +34,37 @@ const OPERATORS: &[Operator] = &[
         country_code: "TUR",
         code: "TCELL",
         name: "Turkcell",
+        imsi_prefix: "28601",
     },
     Operator {
         country_code: "TUR",
         code: "VF_TR",
         name: "Vodafone Turkiye",
+        imsi_prefix: "28602",
     },
     Operator {
         country_code: "TUR",
         code: "TTELE",
         name: "Turk Telekom",
+        imsi_prefix: "28604",
     },
     Operator {
         country_code: "USA",
         code: "ATT",
         name: "AT&T",
+        imsi_prefix: "310410",
     },
     Operator {
         country_code: "USA",
         code: "VZ",
         name: "Verizon",
+        imsi_prefix: "311480",
     },
     Operator {
         country_code: "UKR",
         code: "KS",
         name: "Kyivstar",
+        imsi_prefix: "25501",
     },
 ];
 
@@ -67,6 +74,14 @@ fn operators_for(country_code: &str) -> Vec<Operator> {
         .filter(|o| o.country_code == country_code)
         .cloned()
         .collect()
+}
+
+/// Look up an operator's IMSI prefix (MCC+MNC) by its combobox value.
+pub fn imsi_prefix_for(code: &str) -> Option<&'static str> {
+    OPERATORS
+        .iter()
+        .find(|o| o.code == code)
+        .map(|o| o.imsi_prefix)
 }
 
 pub struct OperatorCombobox {
@@ -118,6 +133,10 @@ impl OperatorCombobox {
 
     pub fn selected_operator(&self, cx: &App) -> Option<&'static str> {
         self.state.read(cx).selected_value()
+    }
+
+    pub fn state(&self) -> &Entity<ComboboxState<SearchableVec<Operator>>> {
+        &self.state
     }
 }
 
