@@ -4,7 +4,9 @@ use gpui_kit::*;
 
 use crate::components::checkbox::ControlledCheckbox;
 use crate::components::country_combobox::CountryCombobox;
+use crate::components::hash_options::HashOptions;
 use crate::components::imsi_display::ImsiDisplay;
+use crate::components::imsi_hash_file::ImsiHashFile;
 use crate::components::operator_combobox::OperatorCombobox;
 
 mod components;
@@ -13,6 +15,8 @@ pub struct HelloWorld {
     country: Entity<CountryCombobox>,
     operator: Entity<OperatorCombobox>,
     imsi: Entity<ImsiDisplay>,
+    hash_file: Entity<ImsiHashFile>,
+    hash_options: Entity<HashOptions>,
 }
 
 impl HelloWorld {
@@ -22,11 +26,15 @@ impl HelloWorld {
         let operator = cx.new(|cx| OperatorCombobox::new(&country_state, window, cx));
         let operator_state = operator.read(cx).state().clone();
         let imsi = cx.new(|cx| ImsiDisplay::new(&operator_state, window, cx));
+        let hash_file = cx.new(|cx| ImsiHashFile::new(window, cx));
+        let hash_options = cx.new(|cx| HashOptions::new(window, cx));
 
         Self {
             country,
             operator,
             imsi,
+            hash_file,
+            hash_options,
         }
     }
 }
@@ -49,6 +57,8 @@ impl Render for HelloWorld {
             .child(self.country.clone())
             .child(self.operator.clone())
             .child(self.imsi.clone())
+            .child(self.hash_options.clone())
+            .child(self.hash_file.clone())
             .child(format!("Selected country code: {code}"))
             .child(format!("Selected operator: {operator}"))
     }
@@ -61,7 +71,7 @@ fn main() {
         // This must be called before using any GPUI Component features.
         gpui_kit::init(cx);
 
-        let bounds = Bounds::centered(None, size(px(400.), px(300.)), cx);
+        let bounds = Bounds::centered(None, size(px(400.), px(600.)), cx);
         cx.spawn(async move |cx| {
             cx.open_window(
                 WindowOptions {
