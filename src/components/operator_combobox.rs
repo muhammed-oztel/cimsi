@@ -4,7 +4,7 @@ use gpui_kit::component::combobox::{Combobox, ComboboxEvent, ComboboxState};
 use gpui_kit::component::searchable_list::{SearchableListItem, SearchableVec};
 use gpui_kit::{
     App, AppContext, Context, Entity, IntoElement, ParentElement, Render, SharedString,
-    Styled, Subscription, Window, div, px,
+    Styled, Subscription, Window, div,
 };
 
 use crate::imsi::{Country, Operator, operators_for};
@@ -96,9 +96,9 @@ impl OperatorCombobox {
 
 impl Render for OperatorCombobox {
     fn render(&mut self, _window: &mut Window, _cx: &mut Context<Self>) -> impl IntoElement {
-        div().w(px(200.)).child(
+        div().w_full().child(
             Combobox::new(&self.state)
-                .placeholder("Select the GSM operator...")
+                .placeholder("Select operator...")
                 .w_full(),
         )
     }

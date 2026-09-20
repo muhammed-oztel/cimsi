@@ -4,7 +4,7 @@ use gpui_kit::component::button::Button;
 use gpui_kit::component::{Disableable, StyledExt};
 use gpui_kit::{
     ClickEvent, Context, IntoElement, ParentElement, PathPromptOptions, Render, Styled, Window,
-    div, px,
+    div, px, rgb,
 };
 
 use crate::hash_file::read_hash_lines;
@@ -100,17 +100,29 @@ impl Render for ImsiHashFile {
             }
         };
 
+        let loaded = self.path.is_some() && !self.loading;
+        let status_color = if loaded { rgb(0x4bc98a) } else { rgb(0x6c7484) };
+
         div()
             .v_flex()
-            .gap_2()
+            .gap_1()
+            .w_full()
+            .child(div().text_xs().text_color(rgb(0x6c7484)).child("Hash file"))
             .child(
                 Button::new("select-imsi-hash-file")
-                    .label("Select IMSI hash file...")
+                    .label("Select hash file...")
                     .disabled(self.loading)
                     .on_click(cx.listener(|this, _: &ClickEvent, _window, cx| {
                         this.pick_file(cx);
                     })),
             )
-            .child(div().w(px(260.)).child(status))
+            .child(
+                div()
+                    .h_flex()
+                    .items_center()
+                    .gap_2()
+                    .child(div().size(px(5.)).rounded_full().bg(status_color))
+                    .child(div().text_xs().text_color(status_color).child(status)),
+            )
     }
 }

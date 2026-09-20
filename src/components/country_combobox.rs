@@ -6,7 +6,7 @@ use gpui_kit::component::combobox::{
 };
 use gpui_kit::component::searchable_list::{SearchableGroup, SearchableListItem, SearchableVec};
 use gpui_kit::{
-    App, AppContext, Context, Entity, IntoElement, ParentElement, Render, Styled, Window, div, px,
+    App, AppContext, Context, Entity, IntoElement, ParentElement, Render, Styled, Window, div,
 };
 
 use crate::imsi::{COUNTRIES, Country};
@@ -58,9 +58,9 @@ impl CountryCombobox {
 
 impl Render for CountryCombobox {
     fn render(&mut self, _window: &mut Window, _cx: &mut Context<Self>) -> impl IntoElement {
-        div().w(px(200.)).child(
+        div().w_full().child(
             Combobox::new(&self.state)
-                .placeholder("Select the country of GSM Operator...")
+                .placeholder("Select country...")
                 .w_full(),
         )
     }

@@ -5,7 +5,7 @@ use gpui_kit::component::searchable_list::SearchableVec;
 use gpui_kit::component::StyledExt;
 use gpui_kit::{
     App, AppContext, Context, Entity, IntoElement, ParentElement, Render, SharedString, Styled,
-    Subscription, Window, div, px,
+    Subscription, Window, div, rgb,
 };
 
 use crate::imsi::{Operator, imsi_prefix_for};
@@ -159,24 +159,40 @@ impl Render for ImsiDisplay {
             .v_flex()
             .gap_2()
             .child(
-                RadioGroup::horizontal("imsi-position")
-                    .child(Radio::new("prefix").label("Prefix"))
-                    .child(Radio::new("suffix").label("Suffix"))
-                    .selected_index(Some(selected_index))
-                    .on_click(cx.listener(|this, ix: &usize, window, cx| {
-                        let position = if *ix == 0 {
-                            Position::Prefix
-                        } else {
-                            Position::Suffix
-                        };
-                        this.set_position(position, window, cx);
-                    })),
+                div()
+                    .v_flex()
+                    .gap_1()
+                    .child(div().text_xs().text_color(rgb(0x6c7484)).child("Position"))
+                    .child(
+                        RadioGroup::horizontal("imsi-position")
+                            .child(Radio::new("prefix").label("Prefix"))
+                            .child(Radio::new("suffix").label("Suffix"))
+                            .selected_index(Some(selected_index))
+                            .on_click(cx.listener(|this, ix: &usize, window, cx| {
+                                let position = if *ix == 0 {
+                                    Position::Prefix
+                                } else {
+                                    Position::Suffix
+                                };
+                                this.set_position(position, window, cx);
+                            })),
+                    ),
             )
-            .child(div().w(px(200.)).child(Input::new(&self.digits_state)))
             .child(
                 div()
-                    .w(px(200.))
-                    .child(Input::new(&self.display_state).disabled(true)),
+                    .v_flex()
+                    .gap_1()
+                    .w_full()
+                    .child(div().text_xs().text_color(rgb(0x6c7484)).child("Known digits"))
+                    .child(Input::new(&self.digits_state).w_full()),
+            )
+            .child(
+                div()
+                    .v_flex()
+                    .gap_1()
+                    .w_full()
+                    .child(div().text_xs().text_color(rgb(0x6c7484)).child("Pattern"))
+                    .child(Input::new(&self.display_state).disabled(true).w_full()),
             )
     }
 }

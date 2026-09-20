@@ -4,7 +4,7 @@ use gpui_kit::component::combobox::{Combobox, ComboboxState};
 use gpui_kit::component::input::{Input, InputState, MaskPattern};
 use gpui_kit::component::searchable_list::SearchableVec;
 use gpui_kit::component::StyledExt;
-use gpui_kit::{App, AppContext, Context, Entity, IntoElement, ParentElement, Render, Styled, Window, div, px};
+use gpui_kit::{App, AppContext, Context, Entity, IntoElement, ParentElement, Render, Styled, Window, div, rgb};
 
 const ALGORITHMS: &[&str] = &["MD5", "SHA-1", "SHA-256"];
 const ENCODINGS: &[&str] = &["Hex", "Base64"];
@@ -73,25 +73,46 @@ impl HashOptions {
     }
 }
 
+fn label(text: &'static str) -> impl IntoElement {
+    div().text_xs().text_color(rgb(0x6c7484)).child(text)
+}
+
 impl Render for HashOptions {
     fn render(&mut self, _window: &mut Window, _cx: &mut Context<Self>) -> impl IntoElement {
         div()
             .h_flex()
             .gap_2()
             .child(
-                div().w(px(140.)).child(
-                    Combobox::new(&self.algorithm_state)
-                        .placeholder("Algorithm")
-                        .w_full(),
-                ),
+                div()
+                    .v_flex()
+                    .gap_1()
+                    .flex_1()
+                    .child(label("Algorithm"))
+                    .child(
+                        Combobox::new(&self.algorithm_state)
+                            .placeholder("Algorithm")
+                            .w_full(),
+                    ),
             )
             .child(
-                div().w(px(140.)).child(
-                    Combobox::new(&self.encoding_state)
-                        .placeholder("Encoding")
-                        .w_full(),
-                ),
+                div()
+                    .v_flex()
+                    .gap_1()
+                    .flex_1()
+                    .child(label("Encoding"))
+                    .child(
+                        Combobox::new(&self.encoding_state)
+                            .placeholder("Encoding")
+                            .w_full(),
+                    ),
             )
-            .child(div().w(px(80.)).child(Input::new(&self.threads_state)))
+            .child(
+                div()
+                    .v_flex()
+                    .gap_1()
+                    .w(gpui_kit::px(80.))
+                    .child(label("Threads"))
+                    .child(Input::new(&self.threads_state)),
+            )
     }
 }

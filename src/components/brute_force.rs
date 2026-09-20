@@ -1,5 +1,5 @@
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::{mpsc, Arc};
+use std::sync::{Arc, mpsc};
 use std::time::{Duration, Instant};
 
 use gpui_kit::component::button::{Button, ButtonVariants};
@@ -8,8 +8,8 @@ use gpui_kit::component::progress::Progress;
 use gpui_kit::component::{Disableable, StyledExt};
 use gpui_kit::prelude::FluentBuilder;
 use gpui_kit::{
-    AppContext, ClickEvent, Context, Entity, IntoElement, ParentElement, PathPromptOptions, Render,
-    Styled, Window, div, px,
+    AppContext, ClickEvent, Context, Entity, FontWeight, IntoElement, ParentElement,
+    PathPromptOptions, Render, Rgba, Styled, Window, div, px, rgb,
 };
 
 use crate::checkpoint::{Checkpoint, RangeProgress};
@@ -20,7 +20,9 @@ use crate::components::imsi_hash_file::ImsiHashFile;
 use crate::components::operator_combobox::OperatorCombobox;
 use crate::hash_file::read_hash_lines;
 use crate::imsi::operator_for_pattern;
-use crate::imsi_search::{BruteForcer, Match, SearchEvent, build_targets, decompose_pattern, split_ranges};
+use crate::imsi_search::{
+    BruteForcer, Match, SearchEvent, build_targets, decompose_pattern, split_ranges,
+};
 
 /// One thread's assigned slice `[start, end)` (used for the percentage/total
 /// calc), the absolute combo index this run's `BruteForcer` resumed from
@@ -121,7 +123,17 @@ impl BruteForce {
 
         let hash_file_display = self.hash_file.read(cx).hashes_source_display();
 
-        self.run_from_ranges(pattern, algorithm, encoding, targets, ranges, hash_file_display, Vec::new(), window, cx);
+        self.run_from_ranges(
+            pattern,
+            algorithm,
+            encoding,
+            targets,
+            ranges,
+            hash_file_display,
+            Vec::new(),
+            window,
+            cx,
+        );
     }
 
     fn resume_from_checkpoint(
@@ -148,7 +160,11 @@ impl BruteForce {
         };
 
         let targets = build_targets(lines.iter().map(String::as_str), hex_mode);
-        let ranges = checkpoint.ranges.iter().map(|r| (r.start, r.end, r.tried)).collect();
+        let ranges = checkpoint
+            .ranges
+            .iter()
+            .map(|r| (r.start, r.end, r.tried))
+            .collect();
         let hash_file_display = checkpoint.hash_file;
 
         if let Some(operator) = operator_for_pattern(&checkpoint.pattern) {
@@ -206,7 +222,12 @@ impl BruteForce {
         self.already_tried_at_start = ranges.iter().map(|&(start, _, tried)| tried - start).sum();
         self.threads = ranges
             .iter()
-            .map(|&(start, end, tried)| ThreadProgress { start, end, resume: tried, tried })
+            .map(|&(start, end, tried)| ThreadProgress {
+                start,
+                end,
+                resume: tried,
+                tried,
+            })
             .collect();
         self.pattern = pattern.clone();
         self.algorithm = algorithm;
@@ -225,8 +246,16 @@ impl BruteForce {
 
             cx.background_executor()
                 .spawn(async move {
-                    let mut forcer =
-                        BruteForcer::new_range(&pattern, algorithm, encoding, targets, resume, end, thread_id, should_stop);
+                    let mut forcer = BruteForcer::new_range(
+                        &pattern,
+                        algorithm,
+                        encoding,
+                        targets,
+                        resume,
+                        end,
+                        thread_id,
+                        should_stop,
+                    );
                     while let Some(event) = forcer.next_event() {
                         if tx.send(event).is_err() {
                             return;
@@ -264,7 +293,7 @@ impl BruteForce {
                 }
 
                 cx.background_executor()
-                    .timer(Duration::from_millis(50))
+                    .timer(Duration::from_millis(1000))
                     .await;
             }
         })
@@ -305,7 +334,11 @@ impl BruteForce {
                 Err(err) => {
                     _ = cx.update(|window, app_cx| {
                         this.update(app_cx, |this, ctx| {
-                            this.set_output(&format!("Failed to read checkpoint: {err}"), window, ctx);
+                            this.set_output(
+                                &format!("Failed to read checkpoint: {err}"),
+                                window,
+                                ctx,
+                            );
                         })
                     });
                     return;
@@ -330,7 +363,11 @@ impl BruteForce {
             ranges: self
                 .threads
                 .iter()
-                .map(|t| RangeProgress { start: t.start, end: t.end, tried: t.tried })
+                .map(|t| RangeProgress {
+                    start: t.start,
+                    end: t.end,
+                    tried: t.tried,
+                })
                 .collect(),
             matches: self.found.clone(),
         };
@@ -368,14 +405,21 @@ impl BruteForce {
     ) {
         for event in batch {
             match event {
-                SearchEvent::Match { thread_id, tried, found } => {
+                SearchEvent::Match {
+                    thread_id,
+                    tried,
+                    found,
+                } => {
                     if let Some(t) = self.threads.get_mut(*thread_id) {
                         t.tried = t.resume + tried;
                     }
                     // Guards against a stale/inconsistent checkpoint (saved
                     // position before an already-recorded match) causing a
                     // resumed search to rewalk past it and report it again.
-                    let already_found = self.found.iter().any(|m| m.imsi == found.imsi && m.hash == found.hash);
+                    let already_found = self
+                        .found
+                        .iter()
+                        .any(|m| m.imsi == found.imsi && m.hash == found.hash);
                     if !already_found {
                         self.found.push(found.clone());
                         self.write_default_output_file();
@@ -431,7 +475,10 @@ impl BruteForce {
                 return;
             };
 
-            let result = cx.background_executor().spawn(async move { std::fs::write(&path, text) }).await;
+            let result = cx
+                .background_executor()
+                .spawn(async move { std::fs::write(&path, text) })
+                .await;
 
             if let Err(err) = result {
                 _ = cx.update(|window, app_cx| {
@@ -469,7 +516,11 @@ impl Render for BruteForce {
 
         let total = self.total_all();
         let tried = self.tried_relative();
-        let percent = if total > 0 { (tried as f64 / total as f64 * 100.0) as f32 } else { 0.0 };
+        let percent = if total > 0 {
+            (tried as f64 / total as f64 * 100.0) as f32
+        } else {
+            0.0
+        };
 
         let elapsed = self
             .frozen_elapsed
@@ -485,12 +536,24 @@ impl Render for BruteForce {
             "unknown".to_string()
         };
 
+        let (status_text, status_color): (&str, u32) = if self.running {
+            ("Searching", 0x49c2d9)
+        } else if !self.found.is_empty() {
+            ("Found matches", 0x4bc98a)
+        } else if total > 0 {
+            ("Idle", 0x6c7484)
+        } else {
+            ("Ready", 0x6c7484)
+        };
+
         div()
             .v_flex()
-            .gap_2()
+            .gap_3()
+            .size_full()
             .child(
                 div()
                     .h_flex()
+                    .items_center()
                     .gap_2()
                     .child(
                         Button::new("brute-force")
@@ -509,38 +572,118 @@ impl Render for BruteForce {
                         ))
                     })
                     .when(!self.running, |this| {
-                        this.child(Button::new("brute-force-resume").label("Resume from file...").on_click(
-                            cx.listener(|this, _: &ClickEvent, window, cx| {
-                                this.resume_dialog(window, cx);
-                            }),
-                        ))
+                        this.child(
+                            Button::new("brute-force-resume")
+                                .label("Resume from file...")
+                                .on_click(cx.listener(|this, _: &ClickEvent, window, cx| {
+                                    this.resume_dialog(window, cx);
+                                })),
+                        )
                     })
                     .when(!self.running && !self.found.is_empty(), |this| {
-                        this.child(Button::new("brute-force-save").label("Save results as...").on_click(
-                            cx.listener(|this, _: &ClickEvent, window, cx| {
-                                this.save_results_dialog(window, cx);
-                            }),
-                        ))
-                    }),
+                        this.child(
+                            Button::new("brute-force-save")
+                                .label("Save results as...")
+                                .on_click(cx.listener(|this, _: &ClickEvent, window, cx| {
+                                    this.save_results_dialog(window, cx);
+                                })),
+                        )
+                    })
+                    .child(div().flex_1())
+                    .child(
+                        div()
+                            .h_flex()
+                            .items_center()
+                            .gap_2()
+                            .px_2()
+                            .py_1()
+                            .rounded_full()
+                            .bg(rgba_mix(status_color, 0x20))
+                            .border_1()
+                            .border_color(rgba_mix(status_color, 0x4d))
+                            .child(div().size(px(6.)).rounded_full().bg(rgb(status_color)))
+                            .child(
+                                div()
+                                    .text_xs()
+                                    .font_weight(FontWeight::SEMIBOLD)
+                                    .text_color(rgb(status_color))
+                                    .child(status_text),
+                            ),
+                    ),
             )
             .when(self.running || total > 0, |this| {
                 this.child(
                     div()
                         .v_flex()
-                        .gap_1()
+                        .gap_2()
+                        .p_3()
+                        .bg(rgb(0x1b2436))
+                        .border_1()
+                        .border_color(rgb(0x2c3650))
+                        .rounded_md()
+                        .child(
+                            div()
+                                .h_flex()
+                                .items_end()
+                                .justify_between()
+                                .child(
+                                    div()
+                                        .text_lg()
+                                        .font_weight(FontWeight::SEMIBOLD)
+                                        .child(format!("{:.1}%", percent)),
+                                )
+                                .child(
+                                    div()
+                                        .text_xs()
+                                        .text_color(rgb(0x6c7484))
+                                        .child(format!("{} / {}", tried, total)),
+                                ),
+                        )
                         .child(Progress::new("brute-force-progress").value(percent))
-                        .child(format!(
-                            "{:.1}% ({}/{})  |  {:.0} h/s  |  ETA {}",
-                            percent, tried, total, rate, eta_text
-                        )),
+                        .child(
+                            div()
+                                .h_flex()
+                                .gap_4()
+                                .text_xs()
+                                .text_color(rgb(0xa8b0bd))
+                                .child(stat("rate", format!("{:.0} h/s", rate)))
+                                .child(stat("eta", eta_text))
+                                .child(stat("threads", format!("{} active", self.threads.len()))),
+                        ),
                 )
             })
             .child(
                 div()
-                    .w(px(320.))
-                    .h(px(160.))
+                    .flex_1()
+                    .w_full()
+                    .bg(rgb(0x121a29))
+                    .border_1()
+                    .border_color(rgb(0x2c3650))
+                    .rounded_md()
                     .child(Textarea::new(&self.output_state).disabled(true).size_full()),
             )
+    }
+}
+
+/// A single "label value" entry in the running-stats row (rate / ETA / active
+/// threads) — mirrors the approved mockup's `.stat-row` styling.
+fn stat(label: &'static str, value: String) -> impl IntoElement {
+    div()
+        .child(div().text_color(rgb(0x6c7484)).child(format!("{label} ")))
+        .child(value)
+        .flex()
+}
+
+/// Blends `rgb` toward transparent by treating `alpha` as an 0-255 byte,
+/// for the status pill's soft background/border (no direct rgba() literal
+/// helper is exposed, so this composes one from the plain `rgb` we already
+/// use everywhere else).
+fn rgba_mix(rgb_value: u32, alpha: u32) -> Rgba {
+    Rgba {
+        r: ((rgb_value >> 16) & 0xff) as f32 / 255.0,
+        g: ((rgb_value >> 8) & 0xff) as f32 / 255.0,
+        b: (rgb_value & 0xff) as f32 / 255.0,
+        a: alpha as f32 / 255.0,
     }
 }
 
@@ -549,7 +692,11 @@ fn default_output_path() -> std::path::PathBuf {
 }
 
 fn matches_to_text(found: &[Match]) -> String {
-    found.iter().map(|m| format!("{}  {}", m.imsi, m.hash)).collect::<Vec<_>>().join("\n")
+    found
+        .iter()
+        .map(|m| format!("{}  {}", m.imsi, m.hash))
+        .collect::<Vec<_>>()
+        .join("\n")
 }
 
 fn format_eta(seconds: f64) -> String {
