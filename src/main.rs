@@ -10,8 +10,12 @@ use crate::components::imsi_display::ImsiDisplay;
 use crate::components::imsi_hash_file::ImsiHashFile;
 use crate::components::operator_combobox::OperatorCombobox;
 
+mod cli;
 mod components;
+mod hash_file;
 mod hashing;
+mod imsi;
+mod imsi_search;
 
 pub struct HelloWorld {
     country: Entity<CountryCombobox>,
@@ -78,7 +82,20 @@ impl Render for HelloWorld {
     }
 }
 
-fn main() {
+fn main() -> std::process::ExitCode {
+    use clap::Parser;
+
+    let args = cli::Cli::parse();
+
+    if let Some(command) = args.command {
+        return cli::run(command);
+    }
+
+    run_gui();
+    std::process::ExitCode::SUCCESS
+}
+
+fn run_gui() {
     let app = gpui_kit::application().with_assets(gpui_kit::assets::Assets);
 
     app.run(move |cx| {

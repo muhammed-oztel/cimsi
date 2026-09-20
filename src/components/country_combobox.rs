@@ -9,11 +9,7 @@ use gpui_kit::{
     App, AppContext, Context, Entity, IntoElement, ParentElement, Render, Styled, Window, div, px,
 };
 
-#[derive(Clone)]
-pub struct Country {
-    code: &'static str,
-    name: &'static str,
-}
+use crate::imsi::{COUNTRIES, Country};
 
 impl SearchableListItem for Country {
     type Value = &'static str;
@@ -26,21 +22,6 @@ impl SearchableListItem for Country {
         &self.code
     }
 }
-
-const COUNTRIES: &[Country] = &[
-    Country {
-        code: "TUR",
-        name: "Turkiye",
-    },
-    Country {
-        code: "USA",
-        name: "United States",
-    },
-    Country {
-        code: "UKR",
-        name: "Ukraine",
-    },
-];
 
 pub struct CountryCombobox {
     state: Entity<ComboboxState<SearchableVec<Country>>>,

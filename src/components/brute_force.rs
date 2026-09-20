@@ -1,4 +1,3 @@
-use std::collections::HashSet;
 use std::sync::mpsc;
 use std::time::Duration;
 
@@ -13,7 +12,7 @@ use gpui_kit::{
 use crate::components::hash_options::HashOptions;
 use crate::components::imsi_display::ImsiDisplay;
 use crate::components::imsi_hash_file::ImsiHashFile;
-use crate::hashing::compute_hash;
+use crate::imsi_search::{BruteForcer, Match, build_targets};
 
 pub struct BruteForce {
     imsi: Entity<ImsiDisplay>,
@@ -55,17 +54,10 @@ impl BruteForce {
         let encoding = self.hash_options.read(cx).encoding(cx);
         let hex_mode = encoding == "Hex";
 
-        let targets: HashSet<String> = self
-            .hash_file
-            .read(cx)
-            .hashes()
-            .iter()
-            .map(|h| {
-                let h = h.trim().to_string();
-                if hex_mode { h.to_lowercase() } else { h }
-            })
-            .filter(|h| !h.is_empty())
-            .collect();
+        let targets = build_targets(
+            self.hash_file.read(cx).hashes().iter().map(String::as_str),
+            hex_mode,
+        );
 
         self.found.clear();
         self.running = true;
@@ -78,25 +70,16 @@ impl BruteForce {
 
         self.set_output("Searching...", window, cx);
 
-        let wildcard_positions: Vec<usize> = pattern
-            .char_indices()
-            .filter(|(_, c)| *c == '*')
-            .map(|(i, _)| i)
-            .collect();
-
-        let (tx, rx) = mpsc::channel::<(String, String)>();
+        let (tx, rx) = mpsc::channel::<Match>();
 
         cx.background_executor()
             .spawn(async move {
-                brute_force_worker(
-                    pattern,
-                    wildcard_positions,
-                    algorithm,
-                    encoding,
-                    hex_mode,
-                    targets,
-                    tx,
-                );
+                let forcer = BruteForcer::new(&pattern, algorithm, encoding, targets);
+                for m in forcer {
+                    if tx.send(m).is_err() {
+                        return;
+                    }
+                }
             })
             .detach();
 
@@ -135,15 +118,9 @@ impl BruteForce {
         .detach();
     }
 
-    fn apply_batch(
-        &mut self,
-        batch: &[(String, String)],
-        done: bool,
-        window: &mut Window,
-        cx: &mut Context<Self>,
-    ) {
-        for (imsi, hash) in batch {
-            self.found.push(format!("{imsi}  {hash}"));
+    fn apply_batch(&mut self, batch: &[Match], done: bool, window: &mut Window, cx: &mut Context<Self>) {
+        for m in batch {
+            self.found.push(format!("{}  {}", m.imsi, m.hash));
         }
 
         if done {
@@ -167,40 +144,6 @@ impl BruteForce {
         self.output_state
             .update(cx, |s, cx| s.set_value(text, window, cx));
         cx.notify();
-    }
-}
-
-fn brute_force_worker(
-    pattern: String,
-    wildcard_positions: Vec<usize>,
-    algorithm: &'static str,
-    encoding: &'static str,
-    hex_mode: bool,
-    targets: HashSet<String>,
-    tx: mpsc::Sender<(String, String)>,
-) {
-    let wildcard_count = wildcard_positions.len() as u32;
-    let total = 10u64.saturating_pow(wildcard_count);
-    let mut candidate = pattern.into_bytes();
-
-    for combo in 0..total {
-        let mut remainder = combo;
-        for &pos in &wildcard_positions {
-            candidate[pos] = b'0' + (remainder % 10) as u8;
-            remainder /= 10;
-        }
-
-        let imsi = String::from_utf8_lossy(&candidate).into_owned();
-        let hash = compute_hash(&imsi, algorithm, encoding);
-        let compare_hash = if hex_mode {
-            hash.to_lowercase()
-        } else {
-            hash.clone()
-        };
-
-        if targets.contains(&compare_hash) && tx.send((imsi, hash)).is_err() {
-            return;
-        }
     }
 }
 

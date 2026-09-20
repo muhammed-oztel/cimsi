@@ -12,3 +12,4 @@ md5 = "0.7"
 sha1_smol = "1.0"
 sha2 = "0.10"
 base64 = "0.22"
+clap = { version = "4", features = ["derive"] }

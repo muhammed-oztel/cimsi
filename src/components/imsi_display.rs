@@ -8,33 +8,16 @@ use gpui_kit::{
     Subscription, Window, div, px,
 };
 
-use crate::components::operator_combobox::{Operator, imsi_prefix_for};
-
-const IMSI_TOTAL_LEN: usize = 15;
-
-#[derive(Clone, Copy, PartialEq)]
-enum ImsiPosition {
-    Prefix,
-    Suffix,
-}
+use crate::imsi::{Operator, imsi_prefix_for};
+use crate::imsi_search::{IMSI_TOTAL_LEN, Position, compose_pattern};
 
 fn digits_mask(remaining: usize) -> MaskPattern {
     MaskPattern::new(&"9".repeat(remaining))
 }
 
-fn compose_imsi(prefix: &str, digits: &str, position: ImsiPosition) -> String {
-    let remaining = IMSI_TOTAL_LEN.saturating_sub(prefix.len());
-    let stars = "*".repeat(remaining.saturating_sub(digits.len()));
-
-    match position {
-        ImsiPosition::Prefix => format!("{prefix}{digits}{stars}"),
-        ImsiPosition::Suffix => format!("{prefix}{stars}{digits}"),
-    }
-}
-
 pub struct ImsiDisplay {
     operator_prefix: &'static str,
-    position: ImsiPosition,
+    position: Position,
     digits_state: Entity<InputState>,
     display_state: Entity<InputState>,
     _operator_subscription: Subscription,
@@ -52,7 +35,7 @@ impl ImsiDisplay {
             .selected_value()
             .and_then(imsi_prefix_for)
             .unwrap_or_default();
-        let position = ImsiPosition::Prefix;
+        let position = Position::Prefix;
 
         let digits_state = cx.new(|cx| {
             InputState::new(window, cx)
@@ -62,7 +45,7 @@ impl ImsiDisplay {
 
         let display_state = cx.new(|cx| {
             let mut s = InputState::new(window, cx);
-            s.set_value(compose_imsi(operator_prefix, "", position), window, cx);
+            s.set_value(compose_pattern(operator_prefix, "", position), window, cx);
             s
         });
 
@@ -88,7 +71,7 @@ impl ImsiDisplay {
                 });
 
                 display_state.update(cx, |s, cx| {
-                    s.set_value(compose_imsi(this.operator_prefix, "", this.position), window, cx);
+                    s.set_value(compose_pattern(this.operator_prefix, "", this.position), window, cx);
                 });
             }
         });
@@ -104,7 +87,7 @@ impl ImsiDisplay {
 
                 display_state.update(cx, |s, cx| {
                     s.set_value(
-                        compose_imsi(this.operator_prefix, &digits, this.position),
+                        compose_pattern(this.operator_prefix, &digits, this.position),
                         window,
                         cx,
                     );
@@ -127,12 +110,12 @@ impl ImsiDisplay {
         self.display_state.read(cx).value()
     }
 
-    fn set_position(&mut self, position: ImsiPosition, window: &mut Window, cx: &mut Context<Self>) {
+    fn set_position(&mut self, position: Position, window: &mut Window, cx: &mut Context<Self>) {
         self.position = position;
 
         let digits = self.digits_state.read(cx).unmask_value();
         self.display_state.update(cx, |s, cx| {
-            s.set_value(compose_imsi(self.operator_prefix, &digits, position), window, cx);
+            s.set_value(compose_pattern(self.operator_prefix, &digits, position), window, cx);
         });
 
         cx.notify();
@@ -142,8 +125,8 @@ impl ImsiDisplay {
 impl Render for ImsiDisplay {
     fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let selected_index = match self.position {
-            ImsiPosition::Prefix => 0,
-            ImsiPosition::Suffix => 1,
+            Position::Prefix => 0,
+            Position::Suffix => 1,
         };
 
         div()
@@ -156,9 +139,9 @@ impl Render for ImsiDisplay {
                     .selected_index(Some(selected_index))
                     .on_click(cx.listener(|this, ix: &usize, window, cx| {
                         let position = if *ix == 0 {
-                            ImsiPosition::Prefix
+                            Position::Prefix
                         } else {
-                            ImsiPosition::Suffix
+                            Position::Suffix
                         };
                         this.set_position(position, window, cx);
                     })),

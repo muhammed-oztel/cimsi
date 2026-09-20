@@ -1,16 +1,18 @@
-use std::fs;
 use std::path::PathBuf;
 
 use gpui_kit::component::button::Button;
-use gpui_kit::component::StyledExt;
+use gpui_kit::component::{Disableable, StyledExt};
 use gpui_kit::{
-    ClickEvent, Context, IntoElement, ParentElement, PathPromptOptions, Render, SharedString,
-    Styled, Window, div, px,
+    ClickEvent, Context, IntoElement, ParentElement, PathPromptOptions, Render, Styled, Window,
+    div, px,
 };
+
+use crate::hash_file::read_hash_lines;
 
 pub struct ImsiHashFile {
     path: Option<PathBuf>,
-    hashes: Vec<SharedString>,
+    hashes: Vec<String>,
+    loading: bool,
 }
 
 impl ImsiHashFile {
@@ -18,10 +20,11 @@ impl ImsiHashFile {
         Self {
             path: None,
             hashes: vec![],
+            loading: false,
         }
     }
 
-    pub fn hashes(&self) -> &[SharedString] {
+    pub fn hashes(&self) -> &[String] {
         &self.hashes
     }
 
@@ -40,20 +43,26 @@ impl ImsiHashFile {
             let Some(path) = paths.pop() else {
                 return;
             };
-            let Ok(contents) = fs::read_to_string(&path) else {
-                return;
-            };
-
-            let hashes: Vec<SharedString> = contents
-                .lines()
-                .map(str::trim)
-                .filter(|line| !line.is_empty())
-                .map(SharedString::from)
-                .collect();
 
             _ = this.update(cx, |this, cx| {
-                this.path = Some(path);
-                this.hashes = hashes;
+                this.loading = true;
+                cx.notify();
+            });
+
+            // A hash-list file can run into the hundreds of thousands or
+            // millions of lines, so parse it off the UI thread.
+            let load_path = path.clone();
+            let result = cx
+                .background_executor()
+                .spawn(async move { read_hash_lines(load_path) })
+                .await;
+
+            _ = this.update(cx, |this, cx| {
+                this.loading = false;
+                if let Ok(hashes) = result {
+                    this.path = Some(path);
+                    this.hashes = hashes;
+                }
                 cx.notify();
             });
         })
@@ -63,14 +72,18 @@ impl ImsiHashFile {
 
 impl Render for ImsiHashFile {
     fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-        let status = match (&self.path, self.hashes.len()) {
-            (Some(path), count) => format!(
-                "{} ({count} hashes)",
-                path.file_name()
-                    .map(|n| n.to_string_lossy().into_owned())
-                    .unwrap_or_default()
-            ),
-            (None, _) => "No file selected".to_string(),
+        let status = if self.loading {
+            "Loading...".to_string()
+        } else {
+            match (&self.path, self.hashes.len()) {
+                (Some(path), count) => format!(
+                    "{} ({count} hashes)",
+                    path.file_name()
+                        .map(|n| n.to_string_lossy().into_owned())
+                        .unwrap_or_default()
+                ),
+                (None, _) => "No file selected".to_string(),
+            }
         };
 
         div()
@@ -79,6 +92,7 @@ impl Render for ImsiHashFile {
             .child(
                 Button::new("select-imsi-hash-file")
                     .label("Select IMSI hash file...")
+                    .disabled(self.loading)
                     .on_click(cx.listener(|this, _: &ClickEvent, _window, cx| {
                         this.pick_file(cx);
                     })),
