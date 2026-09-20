@@ -3,7 +3,9 @@ use std::time::Duration;
 
 use gpui_kit::component::button::{Button, ButtonVariants};
 use gpui_kit::component::input::{Textarea, TextareaState};
+use gpui_kit::component::progress::Progress;
 use gpui_kit::component::{Disableable, StyledExt};
+use gpui_kit::prelude::FluentBuilder;
 use gpui_kit::{
     AppContext, ClickEvent, Context, Entity, IntoElement, ParentElement, Render, Styled, Window,
     div, px,
@@ -12,7 +14,7 @@ use gpui_kit::{
 use crate::components::hash_options::HashOptions;
 use crate::components::imsi_display::ImsiDisplay;
 use crate::components::imsi_hash_file::ImsiHashFile;
-use crate::imsi_search::{BruteForcer, Match, build_targets};
+use crate::imsi_search::{BruteForcer, SearchEvent, build_targets};
 
 pub struct BruteForce {
     imsi: Entity<ImsiDisplay>,
@@ -21,6 +23,8 @@ pub struct BruteForce {
     output_state: Entity<TextareaState>,
     running: bool,
     found: Vec<String>,
+    tried: u64,
+    total: u64,
 }
 
 impl BruteForce {
@@ -41,6 +45,8 @@ impl BruteForce {
             output_state,
             running: false,
             found: vec![],
+            tried: 0,
+            total: 0,
         }
     }
 
@@ -61,6 +67,8 @@ impl BruteForce {
 
         self.found.clear();
         self.running = true;
+        self.tried = 0;
+        self.total = 0;
 
         if targets.is_empty() {
             self.running = false;
@@ -70,13 +78,13 @@ impl BruteForce {
 
         self.set_output("Searching...", window, cx);
 
-        let (tx, rx) = mpsc::channel::<Match>();
+        let (tx, rx) = mpsc::channel::<SearchEvent>();
 
         cx.background_executor()
             .spawn(async move {
-                let forcer = BruteForcer::new(&pattern, algorithm, encoding, targets);
-                for m in forcer {
-                    if tx.send(m).is_err() {
+                let mut forcer = BruteForcer::new(&pattern, algorithm, encoding, targets);
+                while let Some(event) = forcer.next_event() {
+                    if tx.send(event).is_err() {
                         return;
                     }
                 }
@@ -118,9 +126,21 @@ impl BruteForce {
         .detach();
     }
 
-    fn apply_batch(&mut self, batch: &[Match], done: bool, window: &mut Window, cx: &mut Context<Self>) {
-        for m in batch {
-            self.found.push(format!("{}  {}", m.imsi, m.hash));
+    fn apply_batch(
+        &mut self,
+        batch: &[SearchEvent],
+        done: bool,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        for event in batch {
+            match event {
+                SearchEvent::Match(m) => self.found.push(format!("{}  {}", m.imsi, m.hash)),
+                SearchEvent::Progress { tried, total } => {
+                    self.tried = *tried;
+                    self.total = *total;
+                }
+            }
         }
 
         if done {
@@ -155,6 +175,12 @@ impl Render for BruteForce {
             "Brute force"
         };
 
+        let percent = if self.total > 0 {
+            (self.tried as f64 / self.total as f64 * 100.0) as f32
+        } else {
+            0.0
+        };
+
         div()
             .v_flex()
             .gap_2()
@@ -167,6 +193,15 @@ impl Render for BruteForce {
                         this.start(window, cx);
                     })),
             )
+            .when(self.running || self.total > 0, |this| {
+                this.child(
+                    div()
+                        .v_flex()
+                        .gap_1()
+                        .child(Progress::new("brute-force-progress").value(percent))
+                        .child(format!("{:.1}% ({}/{})", percent, self.tried, self.total)),
+                )
+            })
             .child(
                 div()
                     .w(px(320.))

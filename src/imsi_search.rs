@@ -57,6 +57,7 @@ pub struct BruteForcer {
     targets: HashSet<String>,
     next_combo: u64,
     total: u64,
+    last_reported: u64,
 }
 
 impl BruteForcer {
@@ -78,6 +79,7 @@ impl BruteForcer {
             targets,
             next_combo: 0,
             total,
+            last_reported: 0,
         }
     }
 
@@ -89,6 +91,54 @@ impl BruteForcer {
     /// Number of candidates already tried.
     pub fn tried(&self) -> u64 {
         self.next_combo
+    }
+}
+
+/// One event yielded while draining a [`BruteForcer`] via
+/// [`BruteForcer::next_event`]: either a hash match, or a progress update
+/// reporting how many candidates have been tried so far.
+#[derive(Debug, Clone)]
+pub enum SearchEvent {
+    Match(Match),
+    Progress { tried: u64, total: u64 },
+}
+
+impl BruteForcer {
+    /// Like [`Iterator::next`], but also periodically yields a [`SearchEvent::Progress`]
+    /// so long-running searches can report percentage-complete without a caller
+    /// having to poll `tried()`/`total_combinations()` from another thread.
+    pub fn next_event(&mut self) -> Option<SearchEvent> {
+        const PROGRESS_STEP: u64 = 10_000;
+
+        if self.next_combo >= self.total {
+            if self.last_reported < self.total {
+                self.last_reported = self.total;
+                return Some(SearchEvent::Progress {
+                    tried: self.total,
+                    total: self.total,
+                });
+            }
+            return None;
+        }
+
+        if self.next_combo - self.last_reported >= PROGRESS_STEP {
+            self.last_reported = self.next_combo;
+            return Some(SearchEvent::Progress {
+                tried: self.next_combo,
+                total: self.total,
+            });
+        }
+
+        match self.next() {
+            Some(m) => Some(SearchEvent::Match(m)),
+            None => {
+                self.last_reported = self.total;
+                Some(SearchEvent::Progress {
+                    tried: self.total,
+                    total: self.total,
+                })
+            }
+        }
     }
 }
 
