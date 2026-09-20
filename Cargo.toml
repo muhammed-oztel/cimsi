@@ -8,3 +8,7 @@ gpui-ce = "0.2.2"
 gpui_platform = { version = "0.1.0", package = "gpui_ce_platform" }
 gpui-kit = "0.6"
 anyhow = "1.0"
+md5 = "0.7"
+sha1_smol = "1.0"
+sha2 = "0.10"
+base64 = "0.22"

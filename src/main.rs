@@ -2,6 +2,7 @@ use gpui_kit::component::button::*;
 use gpui_kit::component::*;
 use gpui_kit::*;
 
+use crate::components::brute_force::BruteForce;
 use crate::components::checkbox::ControlledCheckbox;
 use crate::components::country_combobox::CountryCombobox;
 use crate::components::hash_options::HashOptions;
@@ -10,6 +11,7 @@ use crate::components::imsi_hash_file::ImsiHashFile;
 use crate::components::operator_combobox::OperatorCombobox;
 
 mod components;
+mod hashing;
 
 pub struct HelloWorld {
     country: Entity<CountryCombobox>,
@@ -17,6 +19,7 @@ pub struct HelloWorld {
     imsi: Entity<ImsiDisplay>,
     hash_file: Entity<ImsiHashFile>,
     hash_options: Entity<HashOptions>,
+    brute_force: Entity<BruteForce>,
 }
 
 impl HelloWorld {
@@ -28,6 +31,15 @@ impl HelloWorld {
         let imsi = cx.new(|cx| ImsiDisplay::new(&operator_state, window, cx));
         let hash_file = cx.new(|cx| ImsiHashFile::new(window, cx));
         let hash_options = cx.new(|cx| HashOptions::new(window, cx));
+        let brute_force = cx.new(|cx| {
+            BruteForce::new(
+                imsi.clone(),
+                hash_options.clone(),
+                hash_file.clone(),
+                window,
+                cx,
+            )
+        });
 
         Self {
             country,
@@ -35,6 +47,7 @@ impl HelloWorld {
             imsi,
             hash_file,
             hash_options,
+            brute_force,
         }
     }
 }
@@ -59,6 +72,7 @@ impl Render for HelloWorld {
             .child(self.imsi.clone())
             .child(self.hash_options.clone())
             .child(self.hash_file.clone())
+            .child(self.brute_force.clone())
             .child(format!("Selected country code: {code}"))
             .child(format!("Selected operator: {operator}"))
     }

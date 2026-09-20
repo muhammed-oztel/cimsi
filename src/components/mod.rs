@@ -1,3 +1,4 @@
+pub mod brute_force;
 pub mod checkbox;
 pub mod country_combobox;
 pub mod hash_options;

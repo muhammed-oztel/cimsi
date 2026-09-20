@@ -4,8 +4,8 @@ use gpui_kit::component::radio::{Radio, RadioGroup};
 use gpui_kit::component::searchable_list::SearchableVec;
 use gpui_kit::component::StyledExt;
 use gpui_kit::{
-    AppContext, Context, Entity, IntoElement, ParentElement, Render, Styled, Subscription, Window,
-    div, px,
+    App, AppContext, Context, Entity, IntoElement, ParentElement, Render, SharedString, Styled,
+    Subscription, Window, div, px,
 };
 
 use crate::components::operator_combobox::{Operator, imsi_prefix_for};
@@ -120,6 +120,11 @@ impl ImsiDisplay {
             _operator_subscription,
             _digits_subscription,
         }
+    }
+
+    /// The full 15-digit IMSI pattern, with `*` standing in for each unknown digit.
+    pub fn pattern(&self, cx: &App) -> SharedString {
+        self.display_state.read(cx).value()
     }
 
     fn set_position(&mut self, position: ImsiPosition, window: &mut Window, cx: &mut Context<Self>) {
