@@ -13,3 +13,6 @@ sha1_smol = "1.0"
 sha2 = "0.10"
 base64 = "0.22"
 clap = { version = "4", features = ["derive"] }
+
+[build-dependencies]
+winres = "0.1"

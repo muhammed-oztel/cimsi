@@ -1,6 +1,6 @@
 use gpui_kit::component::button::*;
-use gpui_kit::component::{Theme, ThemeMode};
 use gpui_kit::component::*;
+use gpui_kit::component::{Theme, ThemeMode};
 use gpui_kit::*;
 
 use crate::components::brute_force::BruteForce;
@@ -77,12 +77,7 @@ fn card(title: &'static str, content: impl IntoElement) -> impl IntoElement {
                 .h_flex()
                 .items_center()
                 .gap_2()
-                .child(
-                    div()
-                        .size(px(6.))
-                        .rounded_full()
-                        .bg(rgb(0x49c2d9)),
-                )
+                .child(div().size(px(6.)).rounded_full().bg(rgb(0x49c2d9)))
                 .child(
                     div()
                         .text_xs()
@@ -127,8 +122,16 @@ impl Render for HelloWorld {
                                 div()
                                     .h_flex()
                                     .gap_2()
-                                    .child(div().flex_1().child(field("Country", self.country.clone())))
-                                    .child(div().flex_1().child(field("Operator", self.operator.clone()))),
+                                    .child(
+                                        div()
+                                            .flex_1()
+                                            .child(field("Country", self.country.clone())),
+                                    )
+                                    .child(
+                                        div()
+                                            .flex_1()
+                                            .child(field("Operator", self.operator.clone())),
+                                    ),
                             )
                             .child(self.imsi.clone()),
                     ))
@@ -268,6 +271,10 @@ fn run_gui() {
                 WindowOptions {
                     window_bounds: Some(WindowBounds::Windowed(bounds)),
                     is_resizable: true,
+                    titlebar: Some(TitlebarOptions {
+                        title: Some("CIMSI - Crack IMSI".into()),
+                        ..Default::default()
+                    }),
                     ..Default::default()
                 },
                 |window, cx| {
